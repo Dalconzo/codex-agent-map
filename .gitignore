@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.tmp-heartbeats/
+heartbeats/
+
+*.log
+*.out.log
+*.err.log
+
+server.stdout.log
+server.stderr.log

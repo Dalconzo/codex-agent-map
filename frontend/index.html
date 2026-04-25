@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codex Mission Control</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">codex mission control</div>
+        <div class="topbar-meta">
+          <span id="summary-line"></span>
+          <span id="connection-state" class="chip">connecting</span>
+        </div>
+      </header>
+
+      <main class="viewport">
+        <section id="tree-root" class="tree-root"></section>
+      </main>
+
+      <aside id="inspector" class="inspector hidden"></aside>
+    </div>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

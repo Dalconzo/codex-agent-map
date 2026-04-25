@@ -1,0 +1,206 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --line: #1a2a31;
+  --text: #d6e0e5;
+  --muted: #6f8691;
+  --panel: rgba(4, 8, 11, 0.92);
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.35 Consolas, "Courier New", monospace;
+}
+
+#app {
+  min-height: 100vh;
+  background: #000;
+}
+
+.topbar {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(3, 5, 7, 0.97);
+}
+
+.brand {
+  color: var(--text);
+  text-transform: lowercase;
+}
+
+.topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+#summary-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  text-transform: lowercase;
+}
+
+.chip.active {
+  color: #88f0a5;
+  border-color: rgba(136, 240, 165, 0.35);
+}
+
+.chip.delayed {
+  color: #ffd36f;
+  border-color: rgba(255, 211, 111, 0.35);
+}
+
+.chip.stale,
+.chip.failed,
+.chip.killed {
+  color: #ff8e78;
+  border-color: rgba(255, 142, 120, 0.35);
+}
+
+.viewport {
+  overflow: auto;
+  height: calc(100vh - 34px);
+}
+
+.tree-root {
+  min-height: 100%;
+  min-width: 100%;
+  padding: 24px;
+}
+
+.tree-svg {
+  display: block;
+  overflow: visible;
+}
+
+.tree-link {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.tree-link.glow {
+  stroke-width: 12;
+  opacity: 0.08;
+}
+
+.tree-link.core {
+  stroke-width: 2.2;
+  opacity: 0.85;
+}
+
+.tree-node {
+  cursor: pointer;
+}
+
+.tree-node .node-halo {
+  opacity: 0.12;
+}
+
+.tree-node .node-core {
+  stroke-width: 1.5;
+}
+
+.tree-node .node-ring {
+  fill: none;
+  stroke-width: 1;
+  opacity: 0.45;
+}
+
+.tree-node .node-label {
+  fill: var(--text);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.tree-node .agent-label {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.tree-node.selected .node-halo {
+  opacity: 0.24;
+}
+
+.tree-node.selected .node-ring {
+  opacity: 0.95;
+  stroke-width: 2;
+}
+
+.tree-node:hover .node-halo {
+  opacity: 0.18;
+}
+
+.inspector {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(460px, calc(100vw - 32px));
+  max-height: 52vh;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.inspector.hidden {
+  display: none;
+}
+
+.inspector-title {
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.inspector-line {
+  margin: 4px 0;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.inspector-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    height: auto;
+    padding: 8px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .viewport {
+    height: calc(100vh - 58px);
+  }
+
+  .tree-root {
+    padding: 12px;
+  }
+}

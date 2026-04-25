@@ -1,0 +1,350 @@
+Prototype: 2–4 agent turns if you keep scope tight. A useful v0 with wrapper heartbeats, repo/worktree scanner, and a live local dashboard is very buildable in one coding-agent session; polish, layout, and edge cases will take another few passes.
+# Codex Mission Control Wrapper: Project Spec
+
+## Goal
+
+Build a local wrapper and visual dashboard for running multiple Codex sessions across Git worktrees.
+
+The system should show, in near real time:
+
+- Which Codex agents are running
+- Which Git worktree each agent is using
+- Current branch, dirty file count, and recent file activity
+- Agent task/status from heartbeat files
+- Repo/worktree tree with agent location badges
+- Clickable/hoverable nodes showing details
+- Continuously refreshing local UI in a command-prompt-inspired style
+
+The first prototype should not modify Codex internals. It should wrap Codex processes and collect status externally.
+
+---
+
+## Core Architecture
+
+```text
+codex-mission-control/
+├─ backend/
+│  ├─ wrapper.py
+│  ├─ server.py
+│  ├─ git_scan.py
+│  ├─ heartbeat.py
+│  └─ models.py
+├─ frontend/
+│  ├─ React app
+│  ├─ React Flow graph/tree view
+│  └─ status/detail panels
+├─ heartbeats/
+│  └─ agent-id.json
+└─ README.md
+Recommended stack:
+Backend: Python + FastAPI + WebSockets
+Git interaction: subprocess calls to git, optionally GitPython later
+Frontend: React + Vite + React Flow
+Desktop shell later: Tauri
+Prototype UI: browser at localhost
+Why Wrapper First
+Do not fork Codex for v0.
+The wrapper gives 80% of the value without owning Codex internals:
+Process alive/dead state
+Worktree path
+Branch
+Dirty files
+Recently modified files
+User-provided task description
+Heartbeat timestamps
+Optional logs
+Codex has documented areas around CLI/app/worktrees and automation, but for this prototype the safer path is external observation and wrapper orchestration rather than depending on unstable internals. OpenAI’s Codex docs list CLI, App worktrees, local environments, app server, SDK, and automation surfaces, which makes external integration the right initial direction.
+User Workflow
+Example usage:
+cmc run \
+  --agent codex-auth-1 \
+  --repo ~/projects/my-app \
+  --worktree ~/projects/my-app-auth \
+  --task "Refactor auth/session boundary"
+Then open:
+cmc dashboard
+or:
+python backend/server.py
+Dashboard appears at:
+http://localhost:8765
+Wrapper Requirements
+Command
+Implement a CLI command:
+cmc run --agent <agent_id> --repo <repo_path> --worktree <worktree_path> --task "<description>" -- <codex args...>
+Example:
+cmc run \
+  --agent codex-1 \
+  --repo ~/repo \
+  --worktree ~/repo-auth \
+  --task "Fix auth tests" \
+  -- codex
+The wrapper should:
+Validate repo path exists
+Validate worktree path exists
+Start Codex inside the worktree
+Record child process PID
+Write heartbeat JSON every 1 second
+Continue until Codex exits
+Mark final status as exited, failed, or killed
+Heartbeat Schema
+Each agent writes:
+{
+  "agent_id": "codex-1",
+  "pid": 18422,
+  "repo_path": "/Users/david/projects/my-app",
+  "worktree_path": "/Users/david/projects/my-app-auth",
+  "branch": "feature/auth-refactor",
+  "cwd": "/Users/david/projects/my-app-auth",
+  "task": "Refactor auth/session boundary",
+  "status": "active",
+  "last_seen": "2026-04-23T22:41:12Z",
+  "uptime_seconds": 318,
+  "dirty_file_count": 4,
+  "dirty_files": [
+    "src/auth/session.py",
+    "tests/test_auth.py"
+  ],
+  "recent_files": [
+    {
+      "path": "src/auth/session.py",
+      "modified_at": "2026-04-23T22:40:55Z"
+    }
+  ],
+  "last_event": "process alive"
+}
+Allowed statuses:
+starting
+active
+idle
+exited
+failed
+stale
+unknown
+Heartbeat files should live at:
+~/.codex-mission-control/heartbeats/<agent_id>.json
+Git Scanner Requirements
+Create git_scan.py.
+Functions:
+get_branch(path: str) -> str
+get_dirty_files(path: str) -> list[str]
+get_worktrees(repo_path: str) -> list[WorktreeInfo]
+get_recent_files(path: str, since_seconds: int = 300) -> list[RecentFile]
+get_repo_tree(path: str, max_depth: int = 4) -> RepoTreeNode
+Use subprocess first:
+git -C <path> branch --show-current
+git -C <path> status --porcelain
+git -C <repo> worktree list --porcelain
+Avoid scanning ignored folders:
+.git/
+node_modules/
+.venv/
+venv/
+dist/
+build/
+target/
+__pycache__/
+.cache/
+.next/
+Backend Server Requirements
+Create FastAPI backend.
+Endpoints:
+GET /api/agents
+GET /api/worktrees
+GET /api/tree?worktree=<path>
+GET /api/state
+WS  /ws/state
+/api/state should return:
+{
+  "agents": [],
+  "worktrees": [],
+  "repo_tree": {},
+  "events": []
+}
+WebSocket should push full state every 1 second for v0.
+Later optimization: push diffs only.
+Frontend Requirements
+Build with:
+npm create vite@latest frontend -- --template react-ts
+npm install reactflow
+Main layout:
+┌───────────────────────────────────────────────┐
+│ Codex Mission Control                         │
+├───────────────┬───────────────────┬───────────┤
+│ Worktrees     │ Repo Visual        │ Details   │
+│ Agents        │ Tree/Graph         │ Stats     │
+├───────────────┴───────────────────┴───────────┤
+│ Event Log                                      │
+└───────────────────────────────────────────────┘
+Center Graph
+Use React Flow.
+Node types:
+repo
+worktree
+folder
+file
+agent
+Visual rules:
+Worktree nodes are large containers/cards
+Folder/file nodes are nested tree-like children
+Agents appear as badges on the file/folder/worktree they are associated with
+Active agent badge pulses
+Stale agent badge turns muted
+Dirty files get a small marker
+Selected node highlights
+Right Detail Panel
+When selecting a node, show:
+Name
+Type
+Path
+Branch
+Dirty status
+Agent currently attached
+Task description
+Last heartbeat
+Recent files
+Git status summary
+Bottom Event Log
+Show timestamped events:
+[15:41:11] codex-1 heartbeat active in feature/auth-refactor
+[15:41:12] codex-2 dirty files: 3
+[15:41:15] codex-1 touched src/auth/session.py
+Visual Style
+Target aesthetic:
+Command-prompt inspired
+Dark background
+Thin borders
+Compact text
+Minimal color
+High information density
+Similar vibe to VS Code Git view plus terminal dashboard
+Avoid:
+Overly colorful dashboards
+Huge cards
+Fancy animations except subtle active-agent pulse
+Spaghetti graph layouts
+Agent Location Heuristic
+For v0, locate an agent using:
+Priority order:
+current_file from heartbeat if present
+Most recently modified dirty file
+Current working directory
+Worktree root
+Attach agent badge to that node.
+Stale Detection
+If heartbeat age:
+< 5 sec: active
+5–30 sec: delayed
+> 30 sec: stale
+process dead: exited/failed
+Backend should compute this, not frontend.
+Prototype Milestones
+Milestone 1: Wrapper
+Deliver:
+cmc run
+heartbeat JSON writing
+process lifecycle tracking
+git branch/dirty file scanning
+Acceptance test:
+Run wrapper around sleep 30 or dummy command
+Heartbeat appears and updates every second
+Status changes when process exits
+Milestone 2: Backend
+Deliver:
+FastAPI server
+/api/state
+WebSocket stream
+heartbeat reader
+stale detection
+worktree scanner
+Acceptance test:
+Start two fake heartbeat files
+/api/state returns both agents
+stale status changes after heartbeat stops
+Milestone 3: Frontend
+Deliver:
+React dashboard
+Worktree list
+Agent list
+Graph/tree visualization
+Details panel
+Live WebSocket updates
+Acceptance test:
+Modify heartbeat JSON manually
+UI updates without refresh
+Selecting a node shows metadata
+Milestone 4: Real Codex Wrapper Test
+Deliver:
+Run real Codex through wrapper
+See it on dashboard
+See dirty files and branch update
+See process exit reflected
+Non-Goals for v0
+Do not implement yet:
+Codex internal hooks
+Forked Codex binary
+Full terminal emulator
+Git diff viewer
+Merge conflict resolution
+PR creation
+Authentication
+Remote multi-machine support
+Persistent database
+Nice-to-Have v1
+SQLite event history
+Git diff summary panel
+Per-agent token/time/cost metadata if available
+Manual status notes
+Kill/restart agent button
+Launch new Codex session from UI
+Tauri desktop wrapper
+AGENTS.md awareness
+Worktree creation UI
+Branch comparison
+Merge readiness score
+Testing Plan
+Backend tests:
+Heartbeat parse test
+Stale detection test
+Git dirty file parser test
+Worktree parser test
+Process wrapper lifecycle test
+Frontend tests:
+Renders agent list
+Renders worktree nodes
+Updates on WebSocket message
+Detail panel changes on selection
+Manual test:
+cmc run --agent test-1 --repo . --worktree . -- python -c "import time; time.sleep(60)"
+Expected:
+Agent appears as active
+Heartbeat updates
+Agent becomes exited after command finishes
+Implementation Order
+Backend heartbeat schema and file paths
+Wrapper process launcher
+Git scanner
+FastAPI /api/state
+Fake frontend with JSON state display
+React Flow visualization
+Agent badges and details panel
+Polish styling
+Real Codex launch test
+Important Design Rule
+Keep the wrapper, backend state model, and frontend rendering separate.
+Bad:
+UI directly shells out to git and reads heartbeat files
+Good:
+wrapper writes heartbeat
+backend builds normalized state
+frontend renders normalized state
+This makes the project much easier for coding agents to build and debug.
+
+My estimate:
+
+- **Turn 1:** coding agent builds wrapper + heartbeat + simple backend.
+- **Turn 2:** agent builds React dashboard with live updates.
+- **Turn 3:** fix integration bugs, real Codex launch path, styling.
+- **Turn 4:** polish graph layout, details panel, stale detection, packaging.
+
+So: **2 turns for ugly-but-working**, **3–4 turns for a prototype you’d actually use**.
+::contentReference[oaicite:1]{index=1}
