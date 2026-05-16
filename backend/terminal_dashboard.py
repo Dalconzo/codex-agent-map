@@ -9,7 +9,8 @@ from rich.console import Console, Group
 from rich.live import Live
 from rich.text import Text
 
-from .heartbeat import describe_heartbeat_root, read_all_heartbeats
+from .checklist import load_deployment_checklist
+from .heartbeat import read_all_heartbeats
 
 
 console = Console()
@@ -21,6 +22,13 @@ LANE_STYLES = [
     "bright_blue",
     "bright_red",
 ]
+CHECKLIST_STATUS_STYLES = {
+    "pending": "bright_black",
+    "in_progress": "yellow",
+    "complete": "green",
+    "blocked": "red",
+    "conditional": "cyan",
+}
 
 
 def compute_agent_status(current_status: str, task: str) -> str:
@@ -199,9 +207,56 @@ def build_graph_lines(repo_path: str, max_lines: int, heartbeat_root: str | None
     return lines
 
 
+def build_checklist_lines(size_columns: int) -> list[Text]:
+    checklist = load_deployment_checklist()
+    items = [
+        item
+        for item in checklist.get("items", [])
+        if item.get("status") != "complete"
+    ]
+    if not items:
+        return []
+
+    lines: list[Text] = []
+    header = Text(" deploy ", style="bold white")
+    lines.append(header)
+
+    for item in items:
+        status = item.get("status", "pending")
+        style = CHECKLIST_STATUS_STYLES.get(status, "bright_black")
+        bead_id = (item.get("bead_id") or "").strip()
+        owner = (item.get("owner") or "").strip()
+        summary = (item.get("summary") or "").strip()
+        note = (item.get("note") or "").strip()
+
+        line = Text("  ")
+        line.append("[", style="bright_black")
+        line.append(status.replace("_", " "), style=style)
+        line.append("]", style="bright_black")
+        if bead_id:
+            line.append(" ")
+            line.append(bead_id, style="bright_cyan")
+        if owner:
+            line.append(" ")
+            line.append(f"[{owner}]", style="bright_magenta")
+        if summary:
+            line.append(" ")
+            line.append(summary, style="white")
+        lines.append(line)
+
+        if note:
+            note_text = Text("      ")
+            note_text.append(note, style="bright_black")
+            lines.append(note_text)
+
+    return lines
+
+
 def build_frame(repo_path: str, heartbeat_root: str | None, show_dev: bool) -> Group:
     size = shutil.get_terminal_size(fallback=(140, 40))
-    graph_height = max(size.lines - 4, 10)
+    checklist_lines = build_checklist_lines(size.columns)
+    reserved = 2 + len(checklist_lines)
+    graph_height = max(size.lines - reserved, 10)
     graph_lines = build_graph_lines(repo_path, graph_height, heartbeat_root, show_dev)
     visible_map = get_agent_commit_map(heartbeat_root, show_dev=show_dev)
     all_map = get_agent_commit_map(heartbeat_root, show_dev=True)
@@ -211,10 +266,9 @@ def build_frame(repo_path: str, heartbeat_root: str | None, show_dev: bool) -> G
     if hidden_dev_agents and not show_dev:
         title_text += f" hidden_dev:{hidden_dev_agents} "
     title = Text(title_text, style="cyan")
-    root_line = Text(f" heartbeat_root:{describe_heartbeat_root(heartbeat_root)} ", style="bright_black")
     divider = Text("-" * min(size.columns, max(20, size.columns)), style="bright_black")
     graph = graph_lines[:graph_height]
-    return Group(title, root_line, divider, *graph)
+    return Group(title, *checklist_lines, divider, *graph)
 
 
 def render_terminal_dashboard(

@@ -4,6 +4,7 @@ __pycache__/
 *.pyd
 
 .tmp-heartbeats/
+.tmp-layouts/
 heartbeats/
 
 *.log

@@ -29,6 +29,9 @@ def register_agent(args: argparse.Namespace) -> int:
         command=[],
         pid=None,
         is_dev=args.dev,
+        resume_target=getattr(args, "resume_target", "") or "",
+        window_group=getattr(args, "window_group", "") or "",
+        tab_title=getattr(args, "tab_title", "") or "",
     )
     write_heartbeat(heartbeat, args.heartbeat_root)
     return 0
@@ -49,6 +52,9 @@ def ping_agent(args: argparse.Namespace) -> int:
         pid=heartbeat.pid,
         exit_code=heartbeat.exit_code,
         is_dev=heartbeat.is_dev,
+        resume_target=heartbeat.resume_target,
+        window_group=heartbeat.window_group,
+        tab_title=heartbeat.tab_title,
     )
     refreshed.uptime_seconds = heartbeat.uptime_seconds
     write_heartbeat(refreshed, args.heartbeat_root)

@@ -37,6 +37,9 @@ def update_agent_task(args: argparse.Namespace) -> int:
         pid=heartbeat.pid,
         exit_code=heartbeat.exit_code,
         is_dev=heartbeat.is_dev,
+        resume_target=heartbeat.resume_target,
+        window_group=heartbeat.window_group,
+        tab_title=heartbeat.tab_title,
     )
     refreshed.uptime_seconds = heartbeat.uptime_seconds
     write_heartbeat(refreshed, args.heartbeat_root)

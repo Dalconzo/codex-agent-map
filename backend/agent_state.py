@@ -17,6 +17,9 @@ def build_agent_heartbeat(
     pid: int | None = None,
     exit_code: int | None = None,
     is_dev: bool = False,
+    resume_target: str = "",
+    window_group: str = "",
+    tab_title: str = "",
 ) -> AgentHeartbeat:
     repo = Path(repo_path).expanduser().resolve()
     worktree = Path(worktree_path).expanduser().resolve()
@@ -40,4 +43,7 @@ def build_agent_heartbeat(
         last_event=last_event,
         command=list(command or []),
         exit_code=exit_code,
+        resume_target=resume_target.strip(),
+        window_group=window_group.strip(),
+        tab_title=tab_title.strip(),
     )

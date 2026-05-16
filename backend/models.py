@@ -75,6 +75,9 @@ class AgentHeartbeat:
     last_event: str = ""
     command: list[str] = field(default_factory=list)
     exit_code: int | None = None
+    resume_target: str = ""
+    window_group: str = ""
+    tab_title: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -106,6 +109,9 @@ class AgentHeartbeat:
             last_event=payload.get("last_event", ""),
             command=list(payload.get("command", [])),
             exit_code=payload.get("exit_code"),
+            resume_target=payload.get("resume_target", ""),
+            window_group=payload.get("window_group", ""),
+            tab_title=payload.get("tab_title", ""),
         )
 
 
